@@ -1,5 +1,8 @@
 import axios from 'axios'
 
+// API base URL
+const API_BASE = 'http://localhost:5003/api'
+
 /**
  * 获取传感器数据
  * @returns {Promise<Object>} 传感器数据

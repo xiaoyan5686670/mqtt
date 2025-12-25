@@ -4,8 +4,10 @@ import threading
 import time
 from datetime import datetime, timedelta
 import uuid
+from flask_cors import CORS  # 添加CORS支持
 
 app = Flask(__name__)
+CORS(app)  # 启用CORS
 
 # 设备存储
 devices = {}
@@ -71,7 +73,7 @@ def parse_sensor_data(payload_str):
     global sensor_data, last_data_received_time
     
     try:
-        # 从payload中解析传感器ID，格式为 "topic_name Temperature1:..."
+        # 从payload中解析传感器ID，格式为 "stm32/1 Temperature1:..."
         payload_lines = payload_str.split('\r\n')
         first_line = payload_lines[0]
         
@@ -299,4 +301,4 @@ if __name__ == '__main__':
     start_expiration_checker()
     # 使用不同的端口以避免与macOS AirPlay Receiver冲突
     # 绑定到所有网络接口，确保可以从其他地址访问
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5003)

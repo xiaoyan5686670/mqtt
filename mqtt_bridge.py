@@ -4,7 +4,7 @@ import os
 import requests
 
 # 指定后端API地址
-BACKEND_API_URL = 'http://localhost:5001/api/update-sensor-data'
+BACKEND_API_URL = 'http://localhost:5003/api/update-sensor-data'
 
 # 连接成功回调
 def on_connect(client, userdata, flags, rc):

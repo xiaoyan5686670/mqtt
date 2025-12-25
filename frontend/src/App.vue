@@ -147,15 +147,13 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
-
-// API base URL
-const API_BASE = 'http://localhost:5001/api'
+// 从API获取和更新传感器配置的函数
+const apiBase = 'http://localhost:5002/api'  // 确保与后端端口一致
 
 // 获取所有设备
 async function fetchAllDevices() {
   try {
-    const response = await fetch(`${API_BASE}/devices`)
+    const response = await fetch(`${apiBase}/devices`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -170,7 +168,7 @@ async function fetchAllDevices() {
 // 注册设备
 async function registerDevice(device) {
   try {
-    const response = await fetch(`${API_BASE}/devices`, {
+    const response = await fetch(`${apiBase}/devices`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -190,7 +188,7 @@ async function registerDevice(device) {
 // 更新设备
 async function updateDevice(deviceId, device) {
   try {
-    const response = await fetch(`${API_BASE}/devices/${deviceId}`, {
+    const response = await fetch(`${apiBase}/devices/${deviceId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
@@ -210,7 +208,7 @@ async function updateDevice(deviceId, device) {
 // 删除设备
 async function deleteDeviceAPI(deviceId) {
   try {
-    const response = await fetch(`${API_BASE}/devices/${deviceId}`, {
+    const response = await fetch(`${apiBase}/devices/${deviceId}`, {
       method: 'DELETE'
     })
     if (!response.ok) {
@@ -222,6 +220,8 @@ async function deleteDeviceAPI(deviceId) {
     throw error
   }
 }
+
+import { ref, onMounted } from 'vue'
 
 export default {
   name: 'App',
