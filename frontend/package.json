@@ -1,0 +1,27 @@
+{
+  "name": "mqtt-sensor-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "echarts": "^5.4.1",
+    "vue": "^3.2.47",
+    "vue-router": "^4.1.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.0.0",
+    "@vitest/ui": "^0.31.0",
+    "@vue/test-utils": "^2.3.2",
+    "jsdom": "^21.1.1",
+    "vite": "^4.1.4",
+    "vitest": "^0.31.0"
+  }
+}
