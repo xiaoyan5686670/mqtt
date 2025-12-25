@@ -18,8 +18,8 @@ sensor_data = {}
 # 记录最后接收数据的时间
 last_data_received_time = {}
 
-# 数据过期时间（30秒）
-DATA_EXPIRATION_SECONDS = 30
+# 数据过期时间（60秒，增加超时时间以避免频繁重置）
+DATA_EXPIRATION_SECONDS = 60
 
 # 设备模型类
 class Device:
@@ -68,24 +68,37 @@ def update_device_status(device_id, status):
 def parse_sensor_data(payload_str):
     """
     解析传感器数据字符串
-    格式示例: "stm32/1 Temperature1: 22.10 C, Humidity1: 16.10 %\r\nTemperature2: 21.80 C, Humidity2: 23.40 %\r\nRelay Status: 1\r\nPB8 Level: 1\r\n"
+    格式示例: "stm32/1 Temperature1: 22.10 C, Humidity1: 16.10 %\nTemperature2: 21.80 C, Humidity2: 23.40 %\nRelay Status: 1\nPB8 Level: 1"
     """
     global sensor_data, last_data_received_time
     
+    print(f"📥 接收到原始数据: {repr(payload_str)}")
+    
     try:
         # 从payload中解析传感器ID，格式为 "stm32/1 Temperature1:..."
-        payload_lines = payload_str.split('\r\n')
+        # 使用更灵活的换行符处理
+        import re
+        # 分割行，保留非空行
+        payload_lines = [line for line in re.split(r'\r?\n|\r', payload_str) if line.strip()]
+        
+        if not payload_lines:
+            print("⚠️ 未找到任何有效数据行")
+            return
+        
         first_line = payload_lines[0]
+        print(f"🔍 第一行: {repr(first_line)}")
         
-        # 提取传感器ID，假设格式为 "topic_name Temperature1:..."
-        topic_and_data = first_line.split(' ', 1)
-        if len(topic_and_data) > 1:
-            device_id = topic_and_data[0].replace('/', '_')  # 将 "stm32/1" 转换为 "stm32_1"
+        # 提取传感器ID，格式为 "topic_name ..."，查找第一个空格前的部分
+        # 正确的格式应该是 "stm32/1 Temperature1: 26.10 C, Humidity1: 15.90 %"
+        space_index = first_line.find(' ')
+        if space_index != -1:
+            device_id = first_line[:space_index].replace('/', '_')  # 将 "stm32/1" 转换为 "stm32_1"
         else:
+            # 如果没有找到空格，说明格式不正确
             device_id = 'default'
+            print(f"⚠️ 无法从第一行解析设备ID，使用默认ID: {device_id}")
         
-        # 重新构建数据部分（去掉传感器ID部分）
-        data_lines = [first_line[len(topic_and_data[0])+1:]] + payload_lines[1:]  # 去掉第一个单词和空格
+        print(f"🏷️ 解析到的设备ID: {device_id}")
         
         # 如果设备不存在，自动注册
         if device_id not in devices:
@@ -100,45 +113,124 @@ def parse_sensor_data(payload_str):
         # 更新设备状态为在线
         update_device_status(device_id, "online")
         
-        # 解析数据行
-        for line in data_lines:
+        # 记录是否成功解析到任何数据
+        parsed_any_data = False
+        
+        # 遍历所有行进行解析
+        for line_idx, line in enumerate(payload_lines):
             line = line.strip()
-            if line:
-                # 对每行再按逗号分割
+            if not line:
+                continue
+                
+            print(f"🔍 处理第{line_idx+1}行: {repr(line)}")
+            
+            # 检查是否是包含多个传感器数据的复合行（如第一行）
+            if 'Temperature1:' in line and 'Humidity1:' in line:
+                # 处理复合行，例如 "Temperature1: 22.10 C, Humidity1: 16.10 %"
                 parts = line.split(', ')
                 for part in parts:
                     part = part.strip()
                     if part.startswith('Temperature1:'):
-                        # 提取温度1
-                        sub_parts = part.split()
-                        sensor_data[device_id]['temperature1'] = float(sub_parts[1])
+                        try:
+                            # 提取 "Temperature1: 22.10 C" 中的数值
+                            value_str = part.split(':', 1)[1].strip().split(' ')[0]
+                            sensor_data[device_id]['temperature1'] = float(value_str)
+                            parsed_any_data = True
+                            print(f"  -> Temperature1값: {value_str}")
+                        except (ValueError, IndexError):
+                            print(f"  -> 无法解析Temperature1: {part}")
                     elif part.startswith('Humidity1:'):
-                        # 提取湿度1
-                        sub_parts = part.split()
-                        sensor_data[device_id]['humidity1'] = float(sub_parts[1])
-                    elif part.startswith('Temperature2:'):
-                        # 提取温度2
-                        sub_parts = part.split()
-                        sensor_data[device_id]['temperature2'] = float(sub_parts[1])
+                        try:
+                            value_str = part.split(':', 1)[1].strip().split(' ')[0]
+                            sensor_data[device_id]['humidity1'] = float(value_str)
+                            parsed_any_data = True
+                            print(f"  -> Humidity1값: {value_str}")
+                        except (ValueError, IndexError):
+                            print(f"  -> 无法解析Humidity1: {part}")
+            elif 'Temperature2:' in line and 'Humidity2:' in line:
+                # 处理可能的复合行 "Temperature2: 21.80 C, Humidity2: 23.40 %"
+                parts = line.split(', ')
+                for part in parts:
+                    part = part.strip()
+                    if part.startswith('Temperature2:'):
+                        try:
+                            value_str = part.split(':', 1)[1].strip().split(' ')[0]
+                            sensor_data[device_id]['temperature2'] = float(value_str)
+                            parsed_any_data = True
+                            print(f"  -> Temperature2값: {value_str}")
+                        except (ValueError, IndexError):
+                            print(f"  -> 无法解析Temperature2: {part}")
                     elif part.startswith('Humidity2:'):
-                        # 提取湿度2
-                        sub_parts = part.split()
-                        sensor_data[device_id]['humidity2'] = float(sub_parts[1])
-                    elif part.startswith('Relay Status:'):
-                        # 提取继电器状态
-                        sub_parts = part.split()
-                        sensor_data[device_id]['relay_status'] = int(sub_parts[2])
-                    elif part.startswith('PB8 Level:'):
-                        # 提取PB8电平
-                        sub_parts = part.split()
-                        sensor_data[device_id]['pb8_level'] = int(sub_parts[2])
+                        try:
+                            value_str = part.split(':', 1)[1].strip().split(' ')[0]
+                            sensor_data[device_id]['humidity2'] = float(value_str)
+                            parsed_any_data = True
+                            print(f"  -> Humidity2값: {value_str}")
+                        except (ValueError, IndexError):
+                            print(f"  -> 无法解析Humidity2: {part}")
+            else:
+                # 处理单个值的行
+                if line.startswith('Temperature2:'):
+                    try:
+                        value_str = line.split(':', 1)[1].strip().split(' ')[0]
+                        sensor_data[device_id]['temperature2'] = float(value_str)
+                        parsed_any_data = True
+                        print(f"  -> Temperature2값: {value_str}")
+                    except (ValueError, IndexError):
+                        print(f"  -> 无法解析Temperature2: {line}")
+                elif line.startswith('Humidity2:'):
+                    try:
+                        value_str = line.split(':', 1)[1].strip().split(' ')[0]
+                        sensor_data[device_id]['humidity2'] = float(value_str)
+                        parsed_any_data = True
+                        print(f"  -> Humidity2값: {value_str}")
+                    except (ValueError, IndexError):
+                        print(f"  -> 无法解析Humidity2: {line}")
+                elif line.startswith('Temperature1:'):
+                    try:
+                        value_str = line.split(':', 1)[1].strip().split(' ')[0]
+                        sensor_data[device_id]['temperature1'] = float(value_str)
+                        parsed_any_data = True
+                        print(f"  -> Temperature1값: {value_str}")
+                    except (ValueError, IndexError):
+                        print(f"  -> 无法解析Temperature1: {line}")
+                elif line.startswith('Humidity1:'):
+                    try:
+                        value_str = line.split(':', 1)[1].strip().split(' ')[0]
+                        sensor_data[device_id]['humidity1'] = float(value_str)
+                        parsed_any_data = True
+                        print(f"  -> Humidity1값: {value_str}")
+                    except (ValueError, IndexError):
+                        print(f"  -> 无法解析Humidity1: {line}")
+                elif line.startswith('Relay Status:'):
+                    try:
+                        value_str = line.split(':', 1)[1].strip()
+                        sensor_data[device_id]['relay_status'] = int(value_str)
+                        parsed_any_data = True
+                        print(f"  -> Relay Status값: {value_str}")
+                    except (ValueError, IndexError):
+                        print(f"  -> 无法解析Relay Status: {line}")
+                elif line.startswith('PB8 Level:'):
+                    try:
+                        value_str = line.split(':', 1)[1].strip()
+                        sensor_data[device_id]['pb8_level'] = int(value_str)
+                        parsed_any_data = True
+                        print(f"  -> PB8 Level값: {value_str}")
+                    except (ValueError, IndexError):
+                        print(f"  -> 无法解析PB8 Level: {line}")
         
-        sensor_data[device_id]['timestamp'] = datetime.now().isoformat()
-        last_data_received_time[device_id] = datetime.now()
-        print(f"✅ Updated sensor data for {device_id}: {sensor_data[device_id]}")
+        # 只有在成功解析到数据时才更新时间戳和最后接收时间
+        if parsed_any_data:
+            sensor_data[device_id]['timestamp'] = datetime.now().isoformat()
+            last_data_received_time[device_id] = datetime.now()
+            print(f"✅ Updated sensor data for {device_id}: {sensor_data[device_id]}")
+        else:
+            print(f"⚠️ 未解析到任何数据来自: {payload_str[:100]}...")
         
     except Exception as e:
         print(f"解析传感器数据时出错: {e}")
+        import traceback
+        traceback.print_exc()
 
 # 定期检查数据是否过期
 def check_data_expiration():
