@@ -301,4 +301,4 @@ if __name__ == '__main__':
     start_expiration_checker()
     # 使用不同的端口以避免与macOS AirPlay Receiver冲突
     # 绑定到所有网络接口，确保可以从其他地址访问
-    app.run(debug=True, host='0.0.0.0', port=5003)
+    app.run(debug=True, host='0.0.0.0', port=5002)

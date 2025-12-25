@@ -5,344 +5,409 @@
     </header>
     
     <main class="main-content">
-      <div class="controls">
-        <button @click="refreshDevices" class="btn-refresh">刷新设备列表</button>
-        <button @click="showAddDeviceModal = true" class="btn-add">添加设备</button>
-        <p class="last-refresh">最后刷新: {{ lastRefreshTime ? new Date(lastRefreshTime).toLocaleString() : '从未刷新' }}</p>
-      </div>
-      
-      <div class="device-cards">
+      <div class="sensor-cards">
         <div 
-          v-for="device in devices" 
-          :key="device.id"
-          :class="['card', { 'offline': device.status !== 'online' }]"
+          v-for="(sensor, sensorId) in sensorData" 
+          :key="sensorId"
+          class="card"
         >
-          <div class="device-header">
-            <h3>{{ device.name }} ({{ device.id }})</h3>
-            <span :class="['status-badge', device.status]">{{ device.status }}</span>
+          <h3>{{ sensorId }} - 传感器数据</h3>
+          
+          <div class="data-grid">
+            <!-- 传感器1板块 -->
+            <div class="data-section sensor1-section">
+              <h4>🌡️ 传感器1</h4>
+              <p class="value">
+                <span :class="{'temp-value': true, 'zero-data': sensor.current_data?.temperature1 === 0 && sensor.current_data?.timestamp && isDataFresh(sensor.current_data?.timestamp)}">
+                  温度: {{ sensor.current_data?.temperature1 || 0 }}°C
+                </span>
+              </p>
+              <p class="value">
+                <span :class="{'humid-value': true, 'zero-data': sensor.current_data?.humidity1 === 0 && sensor.current_data?.timestamp && isDataFresh(sensor.current_data?.timestamp)}">
+                  湿度: {{ sensor.current_data?.humidity1 || 0 }}%
+                </span>
+              </p>
+            </div>
+            
+            <!-- 传感器2板块 -->
+            <div class="data-section sensor2-section">
+              <h4>🌡️ 传感器2</h4>
+              <p class="value">
+                <span :class="{'temp-value': true, 'zero-data': sensor.current_data?.temperature2 === 0 && sensor.current_data?.timestamp && isDataFresh(sensor.current_data?.timestamp)}">
+                  温度: {{ sensor.current_data?.temperature2 || 0 }}°C
+                </span>
+              </p>
+              <p class="value">
+                <span :class="{'humid-value': true, 'zero-data': sensor.current_data?.humidity2 === 0 && sensor.current_data?.timestamp && isDataFresh(sensor.current_data?.timestamp)}">
+                  湿度: {{ sensor.current_data?.humidity2 || 0 }}%
+                </span>
+              </p>
+            </div>
+            
+            <!-- 继电器和PB8电平板块 -->
+            <div class="data-section device-status">
+              <h4>⚙️ 设备状态</h4>
+              <div class="status-row">
+                <p>继电器: 
+                  <span :class="sensor.current_data?.relay_status ? 'status-on' : (sensor.current_data?.relay_status === 0 && sensor.current_data?.timestamp && isDataFresh(sensor.current_data?.timestamp) ? 'status-off-zero' : 'status-off')">
+                    {{ sensor.current_data?.relay_status ? '开启' : '关闭' }}
+                  </span>
+                </p>
+              </div>
+              <div class="status-row">
+                <p>PB8: 
+                  <span :class="sensor.current_data?.pb8_level ? 'status-on' : (sensor.current_data?.pb8_level === 0 && sensor.current_data?.timestamp && isDataFresh(sensor.current_data?.timestamp) ? 'status-off-zero' : 'status-off')">
+                    {{ sensor.current_data?.pb8_level ? '高' : '低' }}
+                  </span>
+                </p>
+              </div>
+            </div>
           </div>
           
-          <div class="device-location">
-            <p><strong>位置:</strong> {{ device.location.building }} - {{ device.location.floor }}楼 - {{ device.location.room }} - {{ device.location.position }}</p>
-          </div>
-          
-          <div class="sensor-values">
-            <p>温度1: <span :class="{'value': true, 'zero-data': device.current_data.temperature1 === 0 && device.current_data.timestamp && isDataFresh(device.current_data.timestamp)}">{{ device.current_data.temperature1 }}°C</span></p>
-            <p>湿度1: <span :class="{'value': true, 'zero-data': device.current_data.humidity1 === 0 && device.current_data.timestamp && isDataFresh(device.current_data.timestamp)}">{{ device.current_data.humidity1 }}%</span></p>
-            <p>温度2: <span :class="{'value': true, 'zero-data': device.current_data.temperature2 === 0 && device.current_data.timestamp && isDataFresh(device.current_data.timestamp)}">{{ device.current_data.temperature2 }}°C</span></p>
-            <p>湿度2: <span :class="{'value': true, 'zero-data': device.current_data.humidity2 === 0 && device.current_data.timestamp && isDataFresh(device.current_data.timestamp)}">{{ device.current_data.humidity2 }}%</span></p>
-            <p>继电器状态: 
-              <span :class="device.current_data.relay_status ? 'status-on' : (device.current_data.relay_status === 0 && device.current_data.timestamp && isDataFresh(device.current_data.timestamp) ? 'status-off-zero' : 'status-off')">
-                {{ device.current_data.relay_status ? '开启' : '关闭' }}
-              </span>
-            </p>
-            <p>PB8 电平: 
-              <span :class="device.current_data.pb8_level ? 'status-on' : (device.current_data.pb8_level === 0 && device.current_data.timestamp && isDataFresh(device.current_data.timestamp) ? 'status-off-zero' : 'status-off')">
-                {{ device.current_data.pb8_level ? '高电平' : '低电平' }}
-              </span>
-            </p>
-          </div>
-          
-          <div class="device-meta">
-            <p><strong>协议:</strong> {{ device.protocol }}</p>
-            <p><strong>最后活动:</strong> {{ device.last_active_time ? new Date(device.last_active_time).toLocaleString() : '从未活动' }}</p>
-            <p><strong>创建时间:</strong> {{ new Date(device.created_time).toLocaleString() }}</p>
-          </div>
-          
-          <div class="device-actions">
-            <button @click="editDevice(device)" class="btn-edit">编辑</button>
-            <button @click="deleteDevice(device.id)" class="btn-delete">删除</button>
-          </div>
+          <p class="update-time">最后更新: {{ sensor.current_data?.timestamp ? new Date(sensor.current_data.timestamp).toLocaleString() : '等待数据...' }}</p>
         </div>
       </div>
       
-      <!-- 添加/编辑设备模态框 -->
-      <div v-if="showAddDeviceModal" class="modal">
-        <div class="modal-content">
-          <h3>{{ editingDevice ? '编辑设备' : '添加设备' }}</h3>
-          
-          <div class="form-group">
-            <label>设备ID:</label>
-            <input 
-              v-model="currentDevice.id" 
-              :disabled="!!editingDevice"
-              type="text" 
-              placeholder="设备唯一标识"
-              class="form-control"
-            />
-          </div>
-          
-          <div class="form-group">
-            <label>设备名称:</label>
-            <input 
-              v-model="currentDevice.name" 
-              type="text" 
-              placeholder="设备名称"
-              class="form-control"
-            />
-          </div>
-          
-          <div class="form-group">
-            <label>协议类型:</label>
-            <select v-model="currentDevice.protocol" class="form-control">
-              <option value="mqtt">MQTT</option>
-              <option value="coap">CoAP</option>
-              <option value="tcp">TCP</option>
-            </select>
-          </div>
-          
-          <h4>位置信息</h4>
-          <div class="form-row">
-            <div class="form-group">
-              <label>楼宇:</label>
-              <input 
-                v-model="currentDevice.location.building" 
-                type="text" 
-                placeholder="楼宇"
-                class="form-control"
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>楼层:</label>
-              <input 
-                v-model="currentDevice.location.floor" 
-                type="text" 
-                placeholder="楼层"
-                class="form-control"
-              />
-            </div>
-          </div>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label>房间:</label>
-              <input 
-                v-model="currentDevice.location.room" 
-                type="text" 
-                placeholder="房间"
-                class="form-control"
-              />
-            </div>
-            
-            <div class="form-group">
-              <label>具体位置:</label>
-              <input 
-                v-model="currentDevice.location.position" 
-                type="text" 
-                placeholder="具体位置"
-                class="form-control"
-              />
-            </div>
-          </div>
-          
-          <div class="modal-actions">
-            <button @click="saveDevice" class="btn-save">{{ editingDevice ? '更新' : '添加' }}</button>
-            <button @click="closeModal" class="btn-cancel">取消</button>
-          </div>
+      <div class="last-update">
+        <p>最后更新: {{ lastUpdateTime ? new Date(lastUpdateTime).toLocaleString() : '等待数据...' }}</p>
+      </div>
+      
+      <!-- 报警信息显示 -->
+      <div v-if="!isDeviceOnline" class="alert-banner">
+        <div class="alert-content">
+          <span class="alert-icon">⚠️</span>
+          <span class="alert-text">传感器离线或故障，请检查设备</span>
+          <span class="alert-time">数据已过期 {{ offlineDuration }} 秒</span>
         </div>
+      </div>
+      
+      <div class="chart-container">
+        <h3>传感器数据图表</h3>
+        <div ref="chartRef" class="chart"></div>
       </div>
     </main>
   </div>
 </template>
 
 <script>
-// 从API获取和更新传感器配置的函数
-const apiBase = 'http://localhost:5002/api'  // 确保与后端端口一致
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import * as echarts from 'echarts'
 
-// 获取所有设备
-async function fetchAllDevices() {
+// API base URL - 使用正确的后端端口
+const API_BASE = 'http://localhost:5002/api'
+
+/**
+ * 获取传感器数据
+ * @returns {Promise<Object>} 传感器数据
+ */
+async function fetchSensorData() {
   try {
-    const response = await fetch(`${apiBase}/devices`)
+    const response = await fetch(`${API_BASE}/devices`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     const data = await response.json()
     return data
   } catch (error) {
-    console.error('获取设备列表失败:', error)
+    console.error('获取传感器数据失败:', error)
     throw error
   }
 }
-
-// 注册设备
-async function registerDevice(device) {
-  try {
-    const response = await fetch(`${apiBase}/devices`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(device)
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error('注册设备失败:', error)
-    throw error
-  }
-}
-
-// 更新设备
-async function updateDevice(deviceId, device) {
-  try {
-    const response = await fetch(`${apiBase}/devices/${deviceId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(device)
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error('更新设备失败:', error)
-    throw error
-  }
-}
-
-// 删除设备
-async function deleteDeviceAPI(deviceId) {
-  try {
-    const response = await fetch(`${apiBase}/devices/${deviceId}`, {
-      method: 'DELETE'
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  } catch (error) {
-    console.error('删除设备失败:', error)
-    throw error
-  }
-}
-
-import { ref, onMounted } from 'vue'
 
 export default {
   name: 'App',
   setup() {
-    const devices = ref([])
-    const lastRefreshTime = ref(null)
-    const showAddDeviceModal = ref(false)
-    const editingDevice = ref(null)
+    const sensorData = ref({})
+    const chartRef = ref(null)
+    let chartInstance = null
+    let updateInterval = null
+    const isDeviceOnline = ref(true)
+    const lastUpdateTime = ref(Date.now())
+    const offlineDuration = ref(0)
+    let offlineTimer = null
     
-    // 当前正在编辑或添加的设备
-    const currentDevice = ref({
-      id: '',
-      name: '',
-      protocol: 'mqtt',
-      location: {
-        building: '',
-        floor: '',
-        room: '',
-        position: ''
-      }
+    // 数据历史记录，用于时间轴图表
+    const dataHistory = ref({
+      time: [],
+      temperature1: [],
+      humidity1: [],
+      temperature2: [],
+      humidity2: []
     })
     
     // 检查数据是否新鲜（在30秒内）
     const isDataFresh = (timestamp) => {
-      if (!timestamp) return false
-      const dataTimestamp = new Date(timestamp).getTime()
-      const now = Date.now()
-      const timeDiff = now - dataTimestamp
-      return timeDiff < 30000
+      if (!timestamp) return false;
+      const dataTimestamp = new Date(timestamp).getTime();
+      const now = Date.now();
+      const timeDiff = now - dataTimestamp;
+      return timeDiff < 30000;
     }
     
-    // 刷新设备列表
-    const refreshDevices = async () => {
+    // 添加数据到历史记录
+    const addDataToHistory = (data) => {
+      const now = new Date()
+      // 格式化时间为小时:分钟:秒格式，例如 "14:30:25"
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+      
+      // 添加时间点
+      dataHistory.value.time.push(timeStr)
+      
+      // 从所有传感器中取第一个传感器的数据用于图表（或聚合数据）
+      const sensorIds = Object.keys(data)
+      if (sensorIds.length > 0) {
+        const firstSensorId = sensorIds[0]
+        const firstSensor = data[firstSensorId]
+        // 添加数据点
+        dataHistory.value.temperature1.push(firstSensor.current_data?.temperature1 || 0)
+        dataHistory.value.humidity1.push(firstSensor.current_data?.humidity1 || 0)
+        dataHistory.value.temperature2.push(firstSensor.current_data?.temperature2 || 0)
+        dataHistory.value.humidity2.push(firstSensor.current_data?.humidity2 || 0)
+      } else {
+        // 如果没有传感器数据，添加0值
+        dataHistory.value.temperature1.push(0)
+        dataHistory.value.humidity1.push(0)
+        dataHistory.value.temperature2.push(0)
+        dataHistory.value.humidity2.push(0)
+      }
+      
+      // 限制历史数据点数量，避免过多数据影响性能
+      if (dataHistory.value.time.length > 60) {
+        dataHistory.value.time.shift()
+        dataHistory.value.temperature1.shift()
+        dataHistory.value.humidity1.shift()
+        dataHistory.value.temperature2.shift()
+        dataHistory.value.humidity2.shift()
+      }
+    }
+    
+    // 检查设备是否在线
+    const checkDeviceStatus = () => {
+      // 检查是否有任何传感器数据
+      const sensorIds = Object.keys(sensorData.value);
+      if (sensorIds.length === 0) {
+        // 如果没有传感器数据，认为设备离线
+        isDeviceOnline.value = false;
+        offlineDuration.value = Math.floor((Date.now() - lastUpdateTime.value) / 1000);
+        return;
+      }
+      
+      // 检查所有传感器中是否有新鲜数据
+      let hasFreshData = false;
+      for (const sensorId of sensorIds) {
+        const sensor = sensorData.value[sensorId];
+        const timestamp = sensor.current_data?.timestamp;
+        if (timestamp) {
+          const dataTimestamp = new Date(timestamp).getTime();
+          const now = Date.now();
+          const timeDiff = now - dataTimestamp;
+          if (timeDiff < 30000) {
+            hasFreshData = true;
+            break;
+          }
+        }
+      }
+      
+      isDeviceOnline.value = hasFreshData;
+      
+      // 计算离线时间（使用最新的时间戳）
+      let latestTimestamp = 0;
+      for (const sensorId of sensorIds) {
+        const sensor = sensorData.value[sensorId];
+        const timestamp = sensor.current_data?.timestamp;
+        if (timestamp) {
+          const ts = new Date(timestamp).getTime();
+          if (ts > latestTimestamp) {
+            latestTimestamp = ts;
+          }
+        }
+      }
+      
+      if (latestTimestamp > 0) {
+        offlineDuration.value = Math.floor((Date.now() - latestTimestamp) / 1000);
+      } else {
+        offlineDuration.value = Math.floor((Date.now() - lastUpdateTime.value) / 1000);
+      }
+    }
+    
+    // 获取传感器数据
+    const fetchSensorData = async () => {
       try {
-        const data = await fetchAllDevices()
-        devices.value = data
-        lastRefreshTime.value = Date.now()
+        const response = await fetch(`${API_BASE}/devices`)
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const jsonData = await response.json()
+        sensorData.value = jsonData
+        // 更新最后更新时间
+        lastUpdateTime.value = Date.now()
+        addDataToHistory(jsonData)
+        updateChart()
       } catch (error) {
-        console.error('刷新设备列表失败:', error)
+        console.error('获取传感器数据失败:', error)
       }
     }
     
-    // 添加新设备
-    const addDevice = () => {
-      editingDevice.value = null
-      currentDevice.value = {
-        id: '',
-        name: '',
-        protocol: 'mqtt',
-        location: {
-          building: '',
-          floor: '',
-          room: '',
-          position: ''
+    // 初始化图表
+    const initChart = () => {
+      if (chartRef.value) {
+        chartInstance = echarts.init(chartRef.value)
+        
+        const option = {
+          tooltip: {
+            trigger: 'axis'
+          },
+          legend: {
+            data: ['温度1', '湿度1', '温度2', '湿度2']
+          },
+          grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            containLabel: true
+          },
+          toolbox: {
+            feature: {
+              saveAsImage: {}
+            }
+          },
+          xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: dataHistory.value.time,
+            // 配置x轴标签的显示格式，以更好地展示小时级时间
+            axisLabel: {
+              interval: 5, // 每隔5个标签显示一个，避免标签过于密集
+              rotate: 45  // 标签旋转45度，节省空间
+            }
+          },
+          yAxis: [
+            {
+              type: 'value',
+              name: '温度 (°C)',
+              position: 'left',
+              min: 0,
+              max: 50,
+              axisLine: {
+                lineStyle: {
+                  color: '#91cc75'
+                }
+              }
+            },
+            {
+              type: 'value',
+              name: '湿度 (%)',
+              position: 'right',
+              min: 0,
+              max: 100,
+              axisLine: {
+                lineStyle: {
+                  color: '#73c0de'
+                }
+              }
+            }
+          ],
+          series: [
+            {
+              name: '温度1',
+              type: 'line',
+              yAxisIndex: 0,
+              data: dataHistory.value.temperature1,
+              itemStyle: { color: '#91cc75' },
+              smooth: true
+            },
+            {
+              name: '湿度1',
+              type: 'line',
+              yAxisIndex: 1,
+              data: dataHistory.value.humidity1,
+              itemStyle: { color: '#73c0de' },
+              smooth: true
+            },
+            {
+              name: '温度2',
+              type: 'line',
+              yAxisIndex: 0,
+              data: dataHistory.value.temperature2,
+              itemStyle: { color: '#fac858' },
+              smooth: true
+            },
+            {
+              name: '湿度2',
+              type: 'line',
+              yAxisIndex: 1,
+              data: dataHistory.value.humidity2,
+              itemStyle: { color: '#ee6666' },
+              smooth: true
+            }
+          ]
         }
-      }
-      showAddDeviceModal.value = true
-    }
-    
-    // 编辑设备
-    const editDevice = (device) => {
-      editingDevice.value = device
-      currentDevice.value = {
-        id: device.id,
-        name: device.name,
-        protocol: device.protocol,
-        location: { ...device.location }
-      }
-      showAddDeviceModal.value = true
-    }
-    
-    // 保存设备（新增或更新）
-    const saveDevice = async () => {
-      try {
-        if (editingDevice.value) {
-          // 更新设备
-          await updateDevice(currentDevice.value.id, currentDevice.value)
-        } else {
-          // 添加设备
-          await registerDevice(currentDevice.value)
-        }
-        showAddDeviceModal.value = false
-        await refreshDevices() // 刷新列表
-      } catch (error) {
-        console.error('保存设备失败:', error)
+        
+        chartInstance.setOption(option)
       }
     }
     
-    // 删除设备
-    const deleteDevice = async (deviceId) => {
-      if (confirm(`确定要删除设备 "${deviceId}" 吗？`)) {
-        try {
-          await deleteDeviceAPI(deviceId)
-          await refreshDevices() // 刷新列表
-        } catch (error) {
-          console.error('删除设备失败:', error)
-        }
+    // 更新图表数据
+    const updateChart = () => {
+      if (chartInstance) {
+        chartInstance.setOption({
+          xAxis: {
+            data: dataHistory.value.time
+          },
+          series: [
+            {
+              name: '温度1',
+              data: dataHistory.value.temperature1
+            },
+            {
+              name: '湿度1',
+              data: dataHistory.value.humidity1
+            },
+            {
+              name: '温度2',
+              data: dataHistory.value.temperature2
+            },
+            {
+              name: '湿度2',
+              data: dataHistory.value.humidity2
+            }
+          ]
+        })
       }
     }
     
-    // 关闭模态框
-    const closeModal = () => {
-      showAddDeviceModal.value = false
-    }
+    onMounted(() => {
+      // 初始获取数据
+      fetchSensorData()
+      
+      // 设置定时更新 - 每2秒更新一次
+      updateInterval = setInterval(fetchSensorData, 2000)
+      
+      // 每秒检查一次设备状态
+      offlineTimer = setInterval(checkDeviceStatus, 1000)
+      
+      // 初始化图表
+      initChart()
+    })
     
-    onMounted(async () => {
-      await refreshDevices()
+    onUnmounted(() => {
+      if (updateInterval) {
+        clearInterval(updateInterval)
+      }
+      if (offlineTimer) {
+        clearInterval(offlineTimer)
+      }
+      if (chartInstance) {
+        chartInstance.dispose()
+      }
     })
     
     return {
-      devices,
-      lastRefreshTime,
-      showAddDeviceModal,
-      editingDevice,
-      currentDevice,
-      refreshDevices,
-      addDevice,
-      editDevice,
-      saveDevice,
-      deleteDevice,
-      closeModal,
+      sensorData,
+      chartRef,
+      isDeviceOnline,
+      offlineDuration,
+      lastUpdateTime,
       isDataFresh
     }
   }
@@ -372,48 +437,9 @@ export default {
   padding: 1rem;
 }
 
-.controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.btn-refresh, .btn-add {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  margin-right: 10px;
-}
-
-.btn-refresh {
-  background-color: #3498db;
-  color: white;
-}
-
-.btn-add {
-  background-color: #2ecc71;
-  color: white;
-}
-
-.btn-refresh:hover, .btn-add:hover {
-  opacity: 0.9;
-}
-
-.last-refresh {
-  margin: 0;
-  color: #7f8c8d;
-}
-
-.device-cards {
+.sensor-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
 }
@@ -423,193 +449,152 @@ export default {
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transition: border 0.3s;
-  position: relative;
 }
 
-.card.offline {
-  border: 2px solid #e74c3c;
-  opacity: 0.8;
-}
-
-.device-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.device-header h3 {
-  margin: 0;
+.card h3 {
+  margin-top: 0;
   color: #34495e;
-}
-
-.status-badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: bold;
-}
-
-.status-badge.online {
-  background-color: #2ecc71;
-  color: white;
-}
-
-.status-badge.offline {
-  background-color: #e74c3c;
-  color: white;
-}
-
-.device-location {
-  margin: 1rem 0;
-  padding: 0.5rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-}
-
-.sensor-values {
-  margin: 1rem 0;
-  padding: 0.5rem 0;
-  border-top: 1px solid #eee;
   border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
 }
 
-.value {
-  font-weight: bold;
-  color: #3498db;
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+
+.data-section {
+  margin: 0;
+  padding: 0.8rem;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sensor1-section {
+  border-left: 4px solid #91cc75;
+}
+
+.sensor2-section {
+  border-left: 4px solid #fac858;
+}
+
+.data-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
   font-size: 1.1rem;
 }
 
+.temp-value, .humid-value {
+  font-weight: bold;
+  font-size: 1.1rem;
+  color: #3498db;
+  display: block;
+  margin: 0.3rem 0;
+}
+
 /* 为零的数据值使用红色字体 */
-.value.zero-data {
+.temp-value.zero-data, .humid-value.zero-data {
   color: #e74c3c;
 }
 
 .status-on {
   color: #2ecc71;
   font-weight: bold;
+  font-size: 1.1rem;
 }
 
 .status-off {
   color: #e74c3c;
   font-weight: bold;
+  font-size: 1.1rem;
 }
 
 /* 为零的设备状态使用红色字体 */
 .status-off-zero {
   color: #e74c3c;
   font-weight: bold;
+  font-size: 1.1rem;
 }
 
-.device-meta {
-  margin: 1rem 0;
-  font-size: 0.9rem;
-  color: #7f8c8d;
+.device-status {
+  border-left: 4px solid #9b59b6;
 }
 
-.device-actions {
+.status-row {
+  margin: 0.5rem 0;
+  flex: 1;
   display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.update-time {
+  font-style: italic;
+  color: #7f8c8d;
+  margin: 0;
+  padding-top: 0.5rem;
   border-top: 1px solid #eee;
 }
 
-.btn-edit, .btn-delete {
-  padding: 0.3rem 0.8rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
+.last-update {
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.btn-edit {
-  background-color: #f39c12;
-  color: white;
-}
-
-.btn-delete {
+/* 新增的报警横幅样式 */
+.alert-banner {
   background-color: #e74c3c;
   color: white;
-}
-
-/* 模态框样式 */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
+  margin-bottom: 2rem;
+  animation: alert-pulse 2s infinite;
 }
 
-.form-group {
-  margin-bottom: 1rem;
+@keyframes alert-pulse {
+  0% { background-color: #e74c3c; }
+  50% { background-color: #c0392b; }
+  100% { background-color: #e74c3c; }
 }
 
-.form-row {
+.alert-content {
   display: flex;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.form-row .form-group {
-  flex: 1;
+.alert-icon {
+  font-size: 1.5rem;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 0.3rem;
+.alert-text {
   font-weight: bold;
-  color: #2c3e50;
+  font-size: 1.2rem;
 }
 
-.form-control {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  box-sizing: border-box;
+.alert-time {
+  font-style: italic;
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
+.chart-container {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.btn-save, .btn-cancel {
-  padding: 0.5rem 1.5rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-}
-
-.btn-save {
-  background-color: #3498db;
-  color: white;
-}
-
-.btn-cancel {
-  background-color: #95a5a6;
-  color: white;
+.chart {
+  height: 400px;
+  margin-top: 1rem;
 }
 </style>

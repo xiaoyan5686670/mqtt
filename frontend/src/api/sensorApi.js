@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // API base URL
-const API_BASE = 'http://localhost:5003/api'
+const API_BASE = 'http://localhost:5002/api'
 
 /**
  * 获取传感器数据
